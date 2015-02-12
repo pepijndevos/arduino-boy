@@ -16,7 +16,10 @@ typedef enum {
 	WAITING_TO_SEND_DATA,
 	START_SENDING_DATA,
 	SENDING_DATA,
-	DATA_SENT
+        SENDING_PATCH_DATA,
+        TRADE_PENDING,
+        TRADE_CONFIRMATION,
+        DONE
 } trade_centre_state_t;
 
 typedef unsigned char byte;
