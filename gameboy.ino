@@ -162,17 +162,24 @@ byte handleIncomingByte(byte in) {
         trade_centre_state = TRADE_PENDING;
       }
     } else if(trade_centre_state == TRADE_PENDING && (in & 0x60) == 0x60) {
-      send = 0x60; // first pokemon
-      trade_pokemon = in - 0x60;
+      if (in == 0x6f) {
+        trade_centre_state = READY_TO_GO;
+        send = 0x6f;
+      } else {
+        send = 0x60; // first pokemon
+        trade_pokemon = in - 0x60;
+      }
     } else if(trade_centre_state == TRADE_PENDING && in == 0x00) {
       send = 0;
       trade_centre_state = TRADE_CONFIRMATION;
     } else if(trade_centre_state == TRADE_CONFIRMATION && (in & 0x60) == 0x60) {
+      send = in;
       if (in  == 0x61) {
         trade_pokemon = -1;
+        trade_centre_state = TRADE_PENDING;
+      } else {
+        trade_centre_state = DONE;
       }
-      send = in;
-      trade_centre_state = DONE;
     } else if(trade_centre_state == DONE && in == 0x00) {
       send = 0;
       trade_centre_state = INIT;
