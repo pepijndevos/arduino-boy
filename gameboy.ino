@@ -51,7 +51,7 @@ void setup() {
     
     Serial.print("hello world\n");
     
-    for (int i=0; i<44; i++) {
+    for (int i=0; i<44+11+11; i++) {
       Serial.print(" ");
       Serial.print(EEPROM.read(i), HEX);
     }
@@ -73,14 +73,29 @@ void loop() {
         in_data = 0;
         if(trade_pokemon >= 0 && trade_centre_state < TRADE_PENDING) {
           // a trade has been confrimed
+          int i;
           int start = 19 + (trade_pokemon * 44);
-          for (int i=0; i<44; i++) {
+          for (i=0; i<44; i++) {
             EEPROM.write(i, INPUT_BLOCK[start+i]);
             Serial.print(" ");
             Serial.print(INPUT_BLOCK[start+i], HEX);
           }
+          Serial.print("\nOT\n");
+          start = 283 + (trade_pokemon * 11);
+          for (i=0; i<11; i++) {
+            EEPROM.write(i+44, INPUT_BLOCK[start+i]);
+            Serial.print(" ");
+            Serial.print(INPUT_BLOCK[start+i], HEX);
+          }
+          Serial.print("\nnick\n");
+          start = 349 + (trade_pokemon * 11);
+          for (i=0; i<11; i++) {
+            EEPROM.write(i+44+11, INPUT_BLOCK[start+i]);
+            Serial.print(" ");
+            Serial.print(INPUT_BLOCK[start+i], HEX);
+          }
           trade_pokemon = -1;
-          Serial.print("trade saved\n");
+          Serial.print("\ntrade saved\n");
         }
       }
     }
@@ -143,7 +158,11 @@ byte handleIncomingByte(byte in) {
       if (counter == 12) {
         send = EEPROM.read(0); // pokemon species
       } else if(counter >= 19 && counter < 19+44) {
-        send = EEPROM.read(counter-19);
+        send = EEPROM.read(counter-19); // pokemon data
+      } else if(counter >= 283 && counter < 283+11) {
+        send = EEPROM.read((counter-283)+44); // trainer name
+      } else if(counter >= 349 && counter < 349+11) {
+        send = EEPROM.read((counter-349)+44+11); // nickname
       } else {
         send = pgm_read_byte(&(DATA_BLOCK[counter]));
       }
@@ -195,3 +214,4 @@ byte handleIncomingByte(byte in) {
 
   return send;
 }
+

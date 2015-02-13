@@ -47,3 +47,4 @@ typedef unsigned char byte;
 #define TRADE_CENTRE_WAIT				0xFD
 
 #endif /* POKEMON_H_ */
+
