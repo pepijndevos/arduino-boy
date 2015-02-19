@@ -2,14 +2,9 @@
 #include "pokemon.h"
 #include "output.h"
 
-#define MOSI_ 22
-#define MISO_ 23
-#define SCLK_ 24
-
-int bytes = 0;
-uint8_t shift = 0;
-uint8_t in_data = 0;
-uint8_t out_data = 0;
+#define MOSI_ 51
+#define MISO_ 50
+#define SCLK_ 52
 
 connection_state_t connection_state = NOT_CONNECTED;
 trade_centre_state_t trade_centre_state = INIT;
@@ -17,89 +12,45 @@ int counter = 0;
 
 int trade_pokemon = -1;
 
-unsigned long last_bit;
+uint8_t transferByte(uint8_t out) {
+    uint8_t in = 0;
+    for(int i = 8; i; i--) {
+        digitalWrite(MOSI_, out & 0x80 ? HIGH : LOW);
+        out <<= 1;
+        
+        digitalWrite(SCLK_, LOW);
+        delayMicroseconds(500);
+        
+        digitalWrite(SCLK_, HIGH);
+        delayMicroseconds(500);
 
-void transferBit(void) {
-    in_data |= digitalRead(MISO_) << (7-shift);
-
-    if(++shift > 7) {
-        shift = 0;
-        bytes++;
-        out_data = handleIncomingByte(in_data);
-        //Serial.print(bytes);
-        //Serial.print(" ");
-        Serial.print(trade_centre_state);
-        Serial.print(" ");
-        Serial.print(in_data, HEX);
-        Serial.print(" ");
-        Serial.print(out_data, HEX);
-        Serial.print("\n");
-        in_data = 0;
+        in <<= 1;
+        in |= digitalRead(MISO_);
     }
-    
-    while(!digitalRead(SCLK_));
-    //Serial.print(out_data & 0x80 ? HIGH : LOW);
-    digitalWrite(MOSI_, out_data & 0x80 ? HIGH : LOW);
-    out_data <<= 1;
+    return in;
 }
 
 void setup() {
     Serial.begin(115200);
-    pinMode(SCLK_, INPUT);
+    pinMode(SCLK_, OUTPUT);
     pinMode(MISO_, INPUT);
     pinMode(MOSI_, OUTPUT);
     
     Serial.print("hello world\n");
     
-    for (int i=0; i<44+11+11; i++) {
-      Serial.print(" ");
-      Serial.print(EEPROM.read(i), HEX);
-    }
-    Serial.print("\n");
-    
     digitalWrite(MOSI_, LOW);
-    out_data <<= 1;
-
+    digitalWrite(SCLK_, HIGH);
 }
 
+uint8_t next = PKMN_MASTER;
 void loop() {
-    last_bit = micros();
-    while(digitalRead(SCLK_)) {
-      if (micros() - last_bit > 1000000) {
-        // the Game Boy is silent. A good time to do book keeping.
-        Serial.print("idle\n");
-        last_bit = micros();
-        shift = 0;
-        in_data = 0;
-        if(trade_pokemon >= 0 && trade_centre_state < TRADE_PENDING) {
-          // a trade has been confrimed
-          int i;
-          int start = 19 + (trade_pokemon * 44);
-          for (i=0; i<44; i++) {
-            EEPROM.write(i, INPUT_BLOCK[start+i]);
-            Serial.print(" ");
-            Serial.print(INPUT_BLOCK[start+i], HEX);
-          }
-          Serial.print("\nOT\n");
-          start = 283 + (trade_pokemon * 11);
-          for (i=0; i<11; i++) {
-            EEPROM.write(i+44, INPUT_BLOCK[start+i]);
-            Serial.print(" ");
-            Serial.print(INPUT_BLOCK[start+i], HEX);
-          }
-          Serial.print("\nnick\n");
-          start = 349 + (trade_pokemon * 11);
-          for (i=0; i<11; i++) {
-            EEPROM.write(i+44+11, INPUT_BLOCK[start+i]);
-            Serial.print(" ");
-            Serial.print(INPUT_BLOCK[start+i], HEX);
-          }
-          trade_pokemon = -1;
-          Serial.print("\ntrade saved\n");
-        }
-      }
-    }
-    transferBit();
+    uint8_t in = transferByte(next);
+    next = handleIncomingByte(in);
+    Serial.print(in, HEX);
+    Serial.print(" ");
+    Serial.print(next, HEX);
+    Serial.print("\n");
+    delay(100);
 }
 
 byte handleIncomingByte(byte in) {
@@ -107,14 +58,13 @@ byte handleIncomingByte(byte in) {
 
   switch(connection_state) {
   case NOT_CONNECTED:
-    if(in == PKMN_MASTER)
-      send = PKMN_SLAVE;
-    else if(in == PKMN_BLANK)
-      send = PKMN_BLANK;
+    if(in == PKMN_SLAVE)
+      send = PKMN_MASTER;
     else if(in == PKMN_CONNECTED) {
       send = PKMN_CONNECTED;
       connection_state = CONNECTED;
-    }
+    } else
+      send = PKMN_MASTER;
     break;
 
   case CONNECTED:
@@ -155,17 +105,7 @@ byte handleIncomingByte(byte in) {
       counter++;
     } else if(trade_centre_state == SENDING_DATA) {
       // if EEPROM is not initialised, please use the pgm data only.
-      if (counter == 12) {
-        send = EEPROM.read(0); // pokemon species
-      } else if(counter >= 19 && counter < 19+44) {
-        send = EEPROM.read(counter-19); // pokemon data
-      } else if(counter >= 283 && counter < 283+11) {
-        send = EEPROM.read((counter-283)+44); // trainer name
-      } else if(counter >= 349 && counter < 349+11) {
-        send = EEPROM.read((counter-349)+44+11); // nickname
-      } else {
-        send = pgm_read_byte(&(DATA_BLOCK[counter]));
-      }
+      send = pgm_read_byte(&(DATA_BLOCK[counter]));
       INPUT_BLOCK[counter] = in;
       counter++;
       if(counter == PLAYER_LENGHT) {
