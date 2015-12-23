@@ -2,9 +2,9 @@
 #include "pokemon.h"
 #include "output.h"
 
-#define MOSI_ 22
-#define MISO_ 23
-#define SCLK_ 24
+#define MOSI_ PB2
+#define MISO_ PB3
+#define SCLK_ PB1
 
 int bytes = 0;
 uint8_t shift = 0;
@@ -154,18 +154,8 @@ byte handleIncomingByte(byte in) {
       trade_centre_state = SENDING_DATA;
       counter++;
     } else if(trade_centre_state == SENDING_DATA) {
-      // if EEPROM is not initialised, please use the pgm data only.
-      if (counter == 12) {
-        send = EEPROM.read(0); // pokemon species
-      } else if(counter >= 19 && counter < 19+44) {
-        send = EEPROM.read(counter-19); // pokemon data
-      } else if(counter >= 283 && counter < 283+11) {
-        send = EEPROM.read((counter-283)+44); // trainer name
-      } else if(counter >= 349 && counter < 349+11) {
-        send = EEPROM.read((counter-349)+44+11); // nickname
-      } else {
-        send = pgm_read_byte(&(DATA_BLOCK[counter]));
-      }
+
+      send = pgm_read_byte(&(DATA_BLOCK[counter]));
       INPUT_BLOCK[counter] = in;
       counter++;
       if(counter == PLAYER_LENGTH) {
