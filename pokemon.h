@@ -5,7 +5,8 @@ typedef enum {
 	NOT_CONNECTED,
 	CONNECTED,
 	TRADE_CENTRE,
-	COLOSSEUM
+	COLOSSEUM,
+  POKEMON_GO
 } connection_state_t;
 
 typedef enum {
@@ -29,9 +30,11 @@ typedef unsigned char byte;
 #define ITEM_1_HIGHLIGHTED				0xD0
 #define ITEM_2_HIGHLIGHTED				0xD1
 #define ITEM_3_HIGHLIGHTED				0xD2
+#define ITEM_4_HIGHLIGHTED        0xD3
 #define ITEM_1_SELECTED					0xD4
 #define ITEM_2_SELECTED					0xD5
 #define ITEM_3_SELECTED					0xD6
+#define ITEM_4_SELECTED         0xD7
 
 #define PKMN_MASTER						0x01
 #define PKMN_SLAVE						0x02
@@ -42,7 +45,8 @@ typedef unsigned char byte;
 
 #define PKMN_TRADE_CENTRE				ITEM_1_SELECTED
 #define PKMN_COLOSSEUM					ITEM_2_SELECTED
-#define PKMN_BREAK_LINK					ITEM_3_SELECTED
+#define PKMN_GO                 ITEM_3_SELECTED
+#define PKMN_BREAK_LINK         ITEM_4_SELECTED
 
 #define TRADE_CENTRE_WAIT				0xFD
 
