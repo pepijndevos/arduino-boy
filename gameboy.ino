@@ -103,6 +103,7 @@ double dist(double th1, double ph1, double th2, double ph2)
 void pokemon_go(void) {
   if(distance_walked > next_encounter) {
       next_encounter = distance_walked + random(MIN_WALK, MAX_WALK);
+      EEPROM.get(EEPROM_DIST_ADDR, distance_walked);
       int id = encounter_idx + random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
       wild_pokemon_t pkm = wild_pokemon[id];
       Serial.println(pkm.species, HEX); 
