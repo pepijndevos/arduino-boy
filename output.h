@@ -1,11 +1,11 @@
 #include <stdint.h>
 #include <avr/pgmspace.h>
 
-#define PLAYER_LENGHT 418
+#define PLAYER_LENGTH 418
 
-uint8_t INPUT_BLOCK[PLAYER_LENGHT];
+uint8_t INPUT_BLOCK[PLAYER_LENGTH];
 
-const uint8_t DATA_BLOCK[PLAYER_LENGHT] PROGMEM = {
+const uint8_t DATA_BLOCK[PLAYER_LENGTH] PROGMEM = {
 0x87, 0x80, 0x82, 0x8A, 0x84, 0x91, 0x50, 0x00, 0x00, 0x00, 0x00, // name
 0x1, 0x24, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // nr of pokemon, pokemon ID, stop byte
 // 6 pokemon

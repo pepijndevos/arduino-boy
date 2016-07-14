@@ -108,7 +108,7 @@ byte handleIncomingByte(byte in) {
       send = pgm_read_byte(&(DATA_BLOCK[counter]));
       INPUT_BLOCK[counter] = in;
       counter++;
-      if(counter == PLAYER_LENGHT) {
+      if(counter == PLAYER_LENGTH) {
         trade_centre_state = SENDING_PATCH_DATA;
       }
     } else if(trade_centre_state == SENDING_PATCH_DATA && in == 0xFD) {
