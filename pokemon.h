@@ -17,11 +17,16 @@ typedef enum {
 	WAITING_TO_SEND_DATA,
 	START_SENDING_DATA,
 	SENDING_DATA,
-        SENDING_PATCH_DATA,
-        TRADE_PENDING,
-        TRADE_CONFIRMATION,
-        DONE
+  SENDING_PATCH_DATA,
+  TRADE_PENDING,
+  TRADE_CONFIRMATION,
+  DONE
 } trade_centre_state_t;
+
+typedef enum {
+  GO_INIT,
+  GO_SEND
+} go_state_t;
 
 typedef unsigned char byte;
 
@@ -48,7 +53,9 @@ typedef unsigned char byte;
 #define PKMN_GO                 ITEM_3_SELECTED
 #define PKMN_BREAK_LINK         ITEM_4_SELECTED
 
-#define TRADE_CENTRE_WAIT				0xFD
+#define SERIAL_PREAMBLE_BYTE 0xFD
+#define SERIAL_NO_DATA_BYTE 0xFE
+
 
 #endif /* POKEMON_H_ */
 
