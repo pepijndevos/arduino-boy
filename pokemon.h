@@ -1,6 +1,11 @@
 #ifndef POKEMON_H_
 #define POKEMON_H_
 
+typedef struct {
+  float distance;
+  unsigned int encounter_idx;
+} walk_t;
+
 typedef enum {
 	NOT_CONNECTED,
 	CONNECTED,

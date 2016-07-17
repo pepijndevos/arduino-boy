@@ -18,16 +18,15 @@ int counter = 0;
 
 int trade_pokemon = -1;
 
-#define EEPROM_REV 1
-#define EEPROM_REV_ADDR 85
-#define EEPROM_DIST_ADDR 86
-#define EEPROM_ENC_IDX 87
+#define EEPROM_REV 2
+#define EEPROM_REV_ADDR 24
+#define EEPROM_ADDR 25
 #define MIN_WALK 20
 #define MAX_WALK 100
 #define ENCOUNTER_RANDOMNESS 10
-float distance_walked = 0;
+
+walk_t walk = {0, ENCOUNTER_RANDOMNESS};
 float next_encounter = 0;
-unsigned int encounter_idx = ENCOUNTER_RANDOMNESS;
 const wild_pokemon_t* next_pkm = NULL;
 
 
@@ -36,6 +35,7 @@ uint8_t transferByte(uint8_t out) {
 }
 
 void setup() {
+  //delay(5000);
   Serial.begin(115200);
   Serial.print("hello world\n");
 
@@ -52,13 +52,13 @@ void setup() {
 
   // Intitialiso/load persistent distance metrics
   if (EEPROM[EEPROM_REV_ADDR] == EEPROM_REV) {
-    EEPROM.get(EEPROM_DIST_ADDR, distance_walked);
-    EEPROM.get(EEPROM_ENC_IDX, encounter_idx);
-    next_encounter = distance_walked + random(MIN_WALK, MAX_WALK);
+    Serial.println("Loading data from EEPROM");
+    EEPROM.get(EEPROM_ADDR, walk);
+    next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
   } else {
+    Serial.println("Initializing EEPROM");
     EEPROM[EEPROM_REV_ADDR] = EEPROM_REV;
-    EEPROM.put(EEPROM_DIST_ADDR, distance_walked);
-    EEPROM.put(EEPROM_ENC_IDX, encounter_idx);
+    EEPROM.put(EEPROM_ADDR, walk);
   }
 
 
@@ -73,10 +73,7 @@ uint8_t next = PKMN_MASTER;
 void loop() {
   uint8_t in = transferByte(next);
   next = handleIncomingByte(in);
-  //Serial.print(in, HEX);
-  //Serial.print(" ");
-  //Serial.print(next, HEX);
-  //Serial.print("\n");
+  //Serial.print(in, HEX); Serial.print(" "); Serial.println(next, HEX);
   delay(100);
     
   if (GPS.newNMEAreceived()) {
@@ -84,14 +81,17 @@ void loop() {
 
     if (GPS.fix) {
       if(GPS.speed > 1 && GPS.speed < 20) { // Reasonable walking/running speeds (?)
-        distance_walked += GPS.speed*5.144; // knots to meters per 10 seconds
-        if(distance_walked > next_encounter) {
-            next_encounter = distance_walked + random(MIN_WALK, MAX_WALK);
-            encounter_idx++;
-            int id = encounter_idx + random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
+        walk.distance += GPS.speed*5.144; // knots to meters per 10 seconds'
+        //walk.distance+=100;
+        if(walk.distance > next_encounter) {
+            next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
+            walk.encounter_idx++;
+            int rn = random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
+            int id = walk.encounter_idx + rn;
             next_pkm = &wild_pokemon[id];
-            EEPROM.put(EEPROM_DIST_ADDR, distance_walked);
-            EEPROM.put(EEPROM_ENC_IDX, encounter_idx);
+            Serial.print("Progress: "); Serial.print(walk.encounter_idx); Serial.print(" + "); Serial.println(rn);
+            Serial.print("Pokemon: "); Serial.println(next_pkm->species, HEX);
+            Serial.print("Level: "); Serial.println(next_pkm->level);
         }
       }
       Serial.print("Location: ");
@@ -100,22 +100,9 @@ void loop() {
       Serial.print(GPS.longitudeDegrees, 4); Serial.println(GPS.lon);
       
       Serial.print("Speed (knots): "); Serial.println(GPS.speed);
-      Serial.print("Angle: "); Serial.println(GPS.angle);
-      Serial.print("Altitude: "); Serial.println(GPS.altitude);
-      Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
-      Serial.print("Distance walked(meter): "); Serial.println(distance_walked);
+      Serial.print("Distance walked(meter): "); Serial.println(walk.distance);
     }
   }
-}
-
-void pokemon_go(void) {
-      int id = encounter_idx + random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
-      wild_pokemon_t pkm = wild_pokemon[id];
-      Serial.println(pkm.species, HEX); 
-      Serial.println(pkm.level); 
-      transferByte(pkm.species);
-      delay(100);
-      transferByte(pkm.level);
 }
 
 byte handleIncomingByte(byte in) {
@@ -139,8 +126,9 @@ byte handleIncomingByte(byte in) {
       connection_state = TRADE_CENTRE;
     else if(in == PKMN_COLOSSEUM)
       connection_state = COLOSSEUM;
-    else if(in == PKMN_GO)
+    else if(in == PKMN_GO) {
       connection_state = POKEMON_GO;
+    }
     else if(in == PKMN_BREAK_LINK || in == PKMN_MASTER) {
       connection_state = NOT_CONNECTED;
       send = PKMN_BREAK_LINK;
@@ -210,7 +198,11 @@ byte handleIncomingByte(byte in) {
     }
     break;
   case POKEMON_GO:
-    if (next_pkm == NULL) {
+    if (go_state == GO_INIT && in == 0xff) { // GameBoy disconnected
+      Serial.println("GameBoy disconnected, saving...");
+      EEPROM.put(EEPROM_ADDR, walk);
+      connection_state = NOT_CONNECTED;
+    } else if (go_state == GO_INIT && next_pkm == NULL) {
       send = SERIAL_NO_DATA_BYTE;
     } else if (go_state == GO_INIT && in == SERIAL_PREAMBLE_BYTE) {
       send = SERIAL_PREAMBLE_BYTE;
@@ -225,12 +217,8 @@ byte handleIncomingByte(byte in) {
       next_encounter = NULL;
       go_state = GO_INIT;
     }
-
-  break;
-
-  default:
-    send = in;
     break;
+
   }
 
   return send;
