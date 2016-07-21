@@ -73,7 +73,8 @@ uint8_t next = PKMN_MASTER;
 void loop() {
   uint8_t in = transferByte(next);
   next = handleIncomingByte(in);
-  //Serial.print(in, HEX); Serial.print(" "); Serial.println(next, HEX);
+  Serial.print(in, HEX); Serial.print(" "); Serial.println(next, HEX);
+  Serial.print(connection_state); Serial.print(" "); Serial.println(go_state);
   delay(100);
     
   if (GPS.newNMEAreceived()) {
@@ -83,16 +84,6 @@ void loop() {
       if(GPS.speed > 1 && GPS.speed < 20) { // Reasonable walking/running speeds (?)
         walk.distance += GPS.speed*5.144; // knots to meters per 10 seconds'
         //walk.distance+=100;
-        if(walk.distance > next_encounter) {
-            next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
-            walk.encounter_idx++;
-            int rn = random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
-            int id = walk.encounter_idx + rn;
-            next_pkm = &wild_pokemon[id];
-            Serial.print("Progress: "); Serial.print(walk.encounter_idx); Serial.print(" + "); Serial.println(rn);
-            Serial.print("Pokemon: "); Serial.println(next_pkm->species, HEX);
-            Serial.print("Level: "); Serial.println(next_pkm->level);
-        }
       }
       Serial.print("Location: ");
       Serial.print(GPS.latitudeDegrees, 4); Serial.print(GPS.lat);
@@ -198,24 +189,31 @@ byte handleIncomingByte(byte in) {
     }
     break;
   case POKEMON_GO:
-    if (go_state == GO_INIT && in == 0xff) { // GameBoy disconnected
-      Serial.println("GameBoy disconnected, saving...");
-      EEPROM.put(EEPROM_ADDR, walk);
-      connection_state = NOT_CONNECTED;
-    } else if (go_state == GO_INIT && next_pkm == NULL) {
+    if (go_state == GO_INIT && walk.distance < next_encounter) {
       send = SERIAL_NO_DATA_BYTE;
     } else if (go_state == GO_INIT && in == SERIAL_PREAMBLE_BYTE) {
       send = SERIAL_PREAMBLE_BYTE;
       go_state = GO_SEND;
       counter=0;
-    } else if (go_state == GO_SEND && counter < 4) {
+    } else if (go_state == GO_SEND && counter < 3) {
       send = SERIAL_PREAMBLE_BYTE;
-    } else if (go_state == GO_SEND && counter == 4) {
+      counter++;
+    } else if (go_state == GO_SEND && counter == 3) {
       send = next_pkm->species;
-    } else if (go_state == GO_SEND && counter == 5) {
+      counter++;
+    } else if (go_state == GO_SEND && counter == 4) {
       send = next_pkm->level;
-      next_encounter = NULL;
+      next_pkm = NULL;
       go_state = GO_INIT;
+      next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
+      walk.encounter_idx++;
+      int rn = random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
+      int id = walk.encounter_idx + rn;
+      next_pkm = &wild_pokemon[id];
+      EEPROM.put(EEPROM_ADDR, walk); // Save
+      Serial.print("Progress: "); Serial.print(walk.encounter_idx); Serial.print(" + "); Serial.println(rn);
+      Serial.print("Pokemon: "); Serial.println(next_pkm->species, HEX);
+      Serial.print("Level: "); Serial.println(next_pkm->level);
     }
     break;
 
