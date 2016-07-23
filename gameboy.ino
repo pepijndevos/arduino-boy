@@ -18,11 +18,11 @@ int counter = 0;
 
 int trade_pokemon = -1;
 
-#define EEPROM_REV 2
-#define EEPROM_REV_ADDR 24
-#define EEPROM_ADDR 25
-#define MIN_WALK 20
-#define MAX_WALK 100
+#define EEPROM_REV 3
+#define EEPROM_REV_ADDR 26
+#define EEPROM_ADDR 27
+#define MIN_WALK 100
+#define MAX_WALK 200
 #define ENCOUNTER_RANDOMNESS 10
 
 walk_t walk = {0, ENCOUNTER_RANDOMNESS};
@@ -46,6 +46,7 @@ void setup() {
   GPS.sendCommand(PMTK_ENABLE_SBAS);
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_100_MILLIHERTZ); // 10s update rate
+  GPS.sendCommand(PMTK_API_SET_FIX_CTL_100_MILLIHERTZ);
   //GPS.sendCommand(PGCMD_ANTENNA);
   
   gpstimer.begin(gpsread, 1000);  // read GPS every ms
@@ -60,8 +61,7 @@ void setup() {
     EEPROM[EEPROM_REV_ADDR] = EEPROM_REV;
     EEPROM.put(EEPROM_ADDR, walk);
   }
-
-
+  update_pokemon();
 
 }
 
@@ -73,8 +73,8 @@ uint8_t next = PKMN_MASTER;
 void loop() {
   uint8_t in = transferByte(next);
   next = handleIncomingByte(in);
-  Serial.print(in, HEX); Serial.print(" "); Serial.println(next, HEX);
-  Serial.print(connection_state); Serial.print(" "); Serial.println(go_state);
+  //Serial.print(in, HEX); Serial.print(" "); Serial.println(next, HEX);
+  //Serial.print(connection_state); Serial.print(" "); Serial.println(go_state);
   delay(100);
     
   if (GPS.newNMEAreceived()) {
@@ -94,6 +94,17 @@ void loop() {
       Serial.print("Distance walked(meter): "); Serial.println(walk.distance);
     }
   }
+}
+
+void update_pokemon() {
+  next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
+  walk.encounter_idx++;
+  int rn = random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
+  int id = walk.encounter_idx + rn;
+  next_pkm = &wild_pokemon[id];
+  Serial.print("Progress: "); Serial.print(walk.encounter_idx); Serial.print(" + "); Serial.println(rn);
+  Serial.print("Pokemon: "); Serial.println(next_pkm->species, HEX);
+  Serial.print("Level: "); Serial.println(next_pkm->level);
 }
 
 byte handleIncomingByte(byte in) {
@@ -203,17 +214,8 @@ byte handleIncomingByte(byte in) {
       counter++;
     } else if (go_state == GO_SEND && counter == 4) {
       send = next_pkm->level;
-      next_pkm = NULL;
       go_state = GO_INIT;
-      next_encounter = walk.distance + random(MIN_WALK, MAX_WALK);
-      walk.encounter_idx++;
-      int rn = random(-ENCOUNTER_RANDOMNESS, ENCOUNTER_RANDOMNESS);
-      int id = walk.encounter_idx + rn;
-      next_pkm = &wild_pokemon[id];
-      EEPROM.put(EEPROM_ADDR, walk); // Save
-      Serial.print("Progress: "); Serial.print(walk.encounter_idx); Serial.print(" + "); Serial.println(rn);
-      Serial.print("Pokemon: "); Serial.println(next_pkm->species, HEX);
-      Serial.print("Level: "); Serial.println(next_pkm->level);
+      update_pokemon();
     }
     break;
 
